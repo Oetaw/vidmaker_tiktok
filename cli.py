@@ -7,9 +7,9 @@ import tempfile
 from utils import filename, str2bool, write_srt
 from icecream import ic
 import subprocess
+vidTypes = ["TTGmplay", "Movies", "Would You Rather"]
 
-
-def mn(output_dir, output_srt, pathse, model_name="small", srt_only = False, language ="auto"):
+def mn(output_dir, output_srt, pathse, videoType, model_name="small", srt_only = False, language ="auto"):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -25,7 +25,6 @@ def mn(output_dir, output_srt, pathse, model_name="small", srt_only = False, lan
         args["language"] = language
 
     model = whisper.load_model(model_name)
-    ic(pathse)
     audios = get_audio(pathse)
     subtitles = get_subtitles(
         audios, output_srt or srt_only, output_dir, lambda audio_path: model.transcribe(audio_path, **args)
@@ -36,11 +35,9 @@ def mn(output_dir, output_srt, pathse, model_name="small", srt_only = False, lan
 
     for path, srt_path in subtitles.items():
         out_path = os.path.join(output_dir, f"{filename(path)}_subed.mp4")
-        ic(srt_path, subtitles.items())
         print(f"Adding subtitles to {filename(path)}...")
         srt_path = srt_path.replace(":/", "\:/")
         video = ffmpeg.input(path)
-        ic(out_path)
         audio = video.audio
         ffmpeg_command = [
             "ffmpeg",
@@ -49,8 +46,19 @@ def mn(output_dir, output_srt, pathse, model_name="small", srt_only = False, lan
             f"subtitles='{srt_path}':force_style='Alignment=10,Fontsize=11,Fontname=Komika Axis,BackColour=&H80000000,Spacing=0.2,Shadow=0.75,OutlineColour=&H40000000'",
             out_path
         ]
+        ffmpeg_command_1 = [
+            "ffmpeg",
+            "-i", path,
+            "-filter_complex",
+            f"subtitles='{srt_path}':force_style='Alignment=10,MarginV=10,Fontsize=8,Fontname=Trebuchet MS'",
+            out_path
+        ]
+        ffmpeg_command_2 = [
+
+        ]
+        ffmpeg_commands = [ffmpeg_command, ffmpeg_command_1, ffmpeg_command_2]
         try:
-            subprocess.run(ffmpeg_command, check=True)
+            subprocess.run(ffmpeg_commands[vidTypes.index(videoType)], check=True)
             print("FFmpeg command executed successfully.")
         except subprocess.CalledProcessError as e:
             print(f"Error running FFmpeg command: {e}")
@@ -62,9 +70,7 @@ def get_audio(paths):
     temp_dir = tempfile.gettempdir()
 
     audio_paths = {}
-    ic(paths)
     for path in paths:
-        ic(path)
         print(f"Extracting audio from {filename(path)}...")
         output_path = os.path.join(temp_dir, f"{filename(path)}.wav")
 
@@ -95,6 +101,7 @@ def get_subtitles(audio_paths: list, output_srt: bool, output_dir: str, transcri
 
         with open(srt_path, "w", encoding="utf-8") as srt:
             write_srt(result["segments"], file=srt)
+            print(result["segments     "])
 
         subtitles_path[path] = srt_path
 
